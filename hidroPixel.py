@@ -1018,7 +1018,7 @@ class HidroPixel:
         self.dlg_flow_tt.le_d_pg3.setText("180")   # Sul
         self.dlg_flow_tt.le_c_pg3.setText("135")   # Sudeste
 
-        self.dlg_flow_tt.le_4_pg3.setText("342")   # Sudeste
+        self.dlg_flow_tt.le_4_pg3.setText("343")   # Sudeste
         self.dlg_flow_tt.le_5_pg3.setText("1898")   # Sudeste
 
     def validar_campos(self):
