@@ -49,7 +49,6 @@ import subprocess
 from osgeo import ogr, gdal, gdalconst
 from functools import wraps
 import matplotlib.pyplot as plt
-from collections import deque
 
 
 class HidroPixel:
@@ -3074,64 +3073,12 @@ class HidroPixel:
     #### pedro
     # self.dlg_flow_tt.le_6_pg1.setText("90")    # Leste
     # self.dlg_flow_tt.le_5_pg1.setText("45")    # Nordeste
-    # self.dlg_flow_tt.le_12_pg1.setText("360")   # Norte
-    # self.dlg_flow_tt.le_11_pg1.setText("315")   # Noroeste
-    # self.dlg_flow_tt.le_10_pg1.setText("270")   # Oeste
+    # self.dlg_flow_tt.le_12_pg1.setText("360")  # Norte
+    # self.dlg_flow_tt.le_11_pg1.setText("315")  # Noroeste
+    # self.dlg_flow_tt.le_10_pg1.setText("270")  # Oeste
     # self.dlg_flow_tt.le_9_pg1.setText("225")   # Sudoeste
     # self.dlg_flow_tt.le_8_pg1.setText("180")   # Sul
     # self.dlg_flow_tt.le_7_pg1.setText("135")   # Sudeste
-
-    # self.dlg_flow_tt.le_5_pg3.setText("343")   # x
-    # self.dlg_flow_tt.le_6_pg3.setText("1898")  # y
-
-
-    # def validar_campos(self):
-    #     self.dlg_flow_tt.le_6_pg1.setText("90")    # Leste
-    #     self.dlg_flow_tt.le_5_pg1.setText("45")    # Nordeste
-    #     self.dlg_flow_tt.le_12_pg1.setText("360")   # Norte
-    #     self.dlg_flow_tt.le_11_pg1.setText("315")   # Noroeste
-    #     self.dlg_flow_tt.le_10_pg1.setText("270")   # Oeste
-    #     self.dlg_flow_tt.le_9_pg1.setText("225")   # Sudoeste
-    #     self.dlg_flow_tt.le_8_pg1.setText("180")   # Sul
-    #     self.dlg_flow_tt.le_7_pg1.setText("135")   # Sudeste
-
-    #     self.dlg_flow_tt.le_5_pg3.setText("343")   # x
-    #     self.dlg_flow_tt.le_6_pg3.setText("1898")  # y
-
-    #     try:
-    #         bacia_path  = self.dlg_flow_tt.cb_1_pg2.currentText().strip()
-    #         mde_path    = self.dlg_flow_tt.cb_2_pg2.currentText().strip()
-    #         fluxo_path  = self.dlg_flow_tt.cb_3_pg2.currentText().strip()
-
-
-    #         # Coords do exutório
-    #         try:
-    #             ex_i = int(self.dlg_flow_tt.le_5_pg3.text())
-    #             ex_j = int(self.dlg_flow_tt.le_6_pg3.text())
-    #             exutorio = (ex_i, ex_j)
-    #         except ValueError:
-    #             QMessageBox.critical(self.dlg_flow_tt, "Erro", "Coordenadas do exutório inválidas.")
-    #             return
-
-    #         # Valida compatibilidade espacial
-    #         if not self.check_all_equal([bacia_path, mde_path, fluxo_path]):
-    #             QMessageBox.critical(
-    #                 self.dlg_flow_tt,
-    #                 "Erro",
-    #                 "Os três rasters devem ter o mesmo número de linhas, colunas e a mesma resolução espacial."
-    #             )
-    #             return
-
-    #         # Valida as direções inseridas no QLineEdit
-    #         if not self.validar_direcoes(fluxo_path):
-    #             QMessageBox.critical(self.dlg_flow_tt, "Erro", "Alguma direção inserida não está presente no raster de fluxos ou existem direções duplicadas.")
-    #             return
-
-    #         # Se tudo OK, chama processamento
-    #         self.dir_flux(fluxo_path, bacia_path, exutorio)
-
-    #     except Exception as e:
-    #         QMessageBox.critical(self.dlg_flow_tt, "Erro inesperado", str(e))
 
     def atualizar_label_validacao(self, label, status):
         """
@@ -3218,7 +3165,6 @@ class HidroPixel:
             QMessageBox.critical(self.dlg_flow_tt, "Erro inesperado", str(e))
             self.atualizar_label_validacao(self.dlg_flow_tt.label_81, 'erro')
 
-
     def validar_raster_mde(self):
         try:
             nome = self.dlg_flow_tt.cb_2_pg2.currentText()
@@ -3242,7 +3188,10 @@ class HidroPixel:
             self.atualizar_label_validacao(self.dlg_flow_tt.label_82, 'erro')
 
     
-    def validar_fluxo_manual(self):
+    def validar_fluxo_manual(self): 
+        """
+        Verify if the flow directions raster's values are valid
+        """
         try:
             fluxo = self.dlg_flow_tt.cb_3_pg2.currentText()
             if not fluxo:
@@ -3270,12 +3219,7 @@ class HidroPixel:
         self.dlg_flow_tt.le_10_pg1.setText("270")   # Oeste
         self.dlg_flow_tt.le_9_pg1.setText("225")    # Sudoeste
         self.dlg_flow_tt.le_8_pg1.setText("180")    # Sul
-        self.dlg_flow_tt.le_7_pg1.setText("135")
-            # Sudeste
-    def preencher_exutorio_padrao(self):
-        self.dlg_flow_tt.le_13_pg2.setText("343")
-        self.dlg_flow_tt.le_14_pg2.setText("1898")
-
+        self.dlg_flow_tt.le_7_pg1.setText("135")    # Sudeste
 
     def check_all_equal(self, paths):
         """
@@ -3299,6 +3243,7 @@ class HidroPixel:
             self.dlg_flow_tt.cb_1_pg2.currentText(),
             self.dlg_flow_tt.cb_2_pg2.currentText(),
             self.dlg_flow_tt.cb_3_pg2.currentText(),
+            self.dlg_flow_tt.cb_7_pg2.currentText()
         ]
         paths = [p for p in paths if p]
 
@@ -3313,8 +3258,6 @@ class HidroPixel:
         else:
             QMessageBox.critical(self.dlg_flow_tt, "Erro", "Os rasters possuem dimensões ou resoluções diferentes.")
             self.atualizar_label_validacao(self.dlg_flow_tt.label_95, 'erro')
-
-
 
 
     def validar_direcoes(self, fluxo_path):
@@ -3365,126 +3308,45 @@ class HidroPixel:
 
         return True
 
-    def percorrer_bacia(self, i, j, raster_fluxo_data, raster_bacia_data, exutorio, angulo_para_vetor):
-        """
-        Percorre a bacia a partir de um pixel (i, j) seguindo as direções de fluxo.
-
-        :return:
-            caminho: lista de tuplas (i, j) dos pixels percorridos
-            status: 1 se chegou ao exutório, 0 se não chegou (erro de convergência)
-            ultimo: último pixel válido antes de interromper
-        """
+    def encontrar_exutorio(self, raster_fluxo_data, raster_bacia_data, raster_acumulado_data):
         nlin, ncol = raster_bacia_data.shape
 
-        def dentro(ii, jj):
-            return 0 <= ii < nlin and 0 <= jj < ncol
-
-        if raster_bacia_data[i, j] != 1:
-            return [], 0, (i, j)  # Fora da bacia
-
-        pilha = [(i, j)]
-        visitando = set()
-        caminho = []
-        ultimo = (i, j)
-
-        while pilha:
-            ci, cj = pilha[-1]
-            ultimo = (ci, cj)
-
-            if (ci, cj) in visitando:
-                return pilha.copy(), 0, ultimo  # Detecção de ciclo
-
-            visitando.add((ci, cj))
-            caminho.append((ci, cj))
-
-            if (ci, cj) == exutorio:
-                return caminho, 1, ultimo
-
-            flux = raster_fluxo_data[ci, cj]
-            vec = angulo_para_vetor.get(flux)
-            if vec is None:
-                return caminho, 0, ultimo  # Direção inválida
-
-            ni, nj = ci + vec[0], cj + vec[1]
-            if not (dentro(ni, nj) and raster_bacia_data[ni, nj] == 1):
-                return caminho, 0, ultimo  # Saiu da bacia
-
-            pilha.append((ni, nj))
-
-        return caminho, 0, ultimo  # Falhou (não deveria chegar aqui)
-
-
-
-    def encontrar_exutorio(self, raster_fluxo_data, raster_bacia_data, raster_mde_data):
-        """
-        Encontra o exutório da bacia como o pixel da bacia
-        com menor cota e que tem direção de fluxo apontando para fora da bacia.
-        
-        :param raster_fluxo_data: numpy array com as direções de fluxo (inteiros)
-        :param raster_bacia_data: numpy array binário da bacia (1 dentro, 0 fora)
-        :param raster_mde_data: numpy array com elevações (cotas)
-        :return: (i, j) tupla dos índices do exutório encontrado, ou None se não achar
-        """
-
-        nlin, ncol = raster_bacia_data.shape
-
-        # Dicionário de direções: vetor -> código de direção
-        direcoes_dict = {
-            (0, 1):  int(self.dlg_flow_tt.le_6_pg1.text()),   # Leste
-            (-1, 1): int(self.dlg_flow_tt.le_5_pg1.text()),   # Nordeste
-            (-1, 0): int(self.dlg_flow_tt.le_12_pg1.text()),  # Norte
-            (-1,-1): int(self.dlg_flow_tt.le_11_pg1.text()),  # Noroeste
-            (0, -1): int(self.dlg_flow_tt.le_10_pg1.text()),  # Oeste
-            (1, -1): int(self.dlg_flow_tt.le_9_pg1.text()),   # Sudoeste
-            (1, 0):  int(self.dlg_flow_tt.le_8_pg1.text()),   # Sul
-            (1, 1):  int(self.dlg_flow_tt.le_7_pg1.text()),   # Sudeste
-        }
-
-        # Inverte para mapear código direção -> vetor
-        angulo_para_vetor = {ang: vec for vec, ang in direcoes_dict.items()}
-
-        def dentro(i, j):
-            return 0 <= i < nlin and 0 <= j < ncol
-
-        candidatos = []
+        max_valor = -np.inf
+        exutorio = None
 
         for i in range(nlin):
             for j in range(ncol):
                 if raster_bacia_data[i, j] != 1:
                     continue
 
-                fluxo = raster_fluxo_data[i, j]
-                if fluxo not in angulo_para_vetor:
+                valor_acumulado = raster_acumulado_data[i, j]
+                if np.isnan(valor_acumulado):
                     continue
 
-                di, dj = angulo_para_vetor[fluxo]
-                ni, nj = i + di, j + dj
+                if valor_acumulado > max_valor:
+                    max_valor = valor_acumulado
+                    exutorio = (i, j)
 
-                # Se próximo pixel está fora da bacia ou fora dos limites, fluxo sai da bacia
-                if not dentro(ni, nj) or raster_bacia_data[ni, nj] != 1:
-                    cota = raster_mde_data[i, j]
-                    candidatos.append((i, j, cota))
-
-        if not candidatos:
-            QMessageBox.critical(self.dlg_flow_tt, "Erro", "Nenhum exutório encontrado: nenhum fluxo sai da bacia.")
+        if exutorio is None:
+            QMessageBox.critical(self.dlg_flow_tt, "Erro", "Nenhum exutório encontrado: bacia sem valores acumulados válidos.")
             return None
 
-        # Seleciona candidato com menor cota
-        exutorio = min(candidatos, key=lambda x: x[2])
-        i, j, cota = exutorio
-
-        # QMessageBox.information(self.dlg_flow_tt, "Exutório encontrado",
-        #                         f"Exutório encontrado em pixel ({i}, {j}) com cota {cota:.2f}")
-
-        return (i, j)
+        return exutorio
 
 
+    def processar_fluxo(self):
+        nome_raster_acumulado = self.dlg_flow_tt.cb_6_pg2.currentText()
+        if not nome_raster_acumulado:
+            QMessageBox.critical(self.dlg_flow_tt, "Erro", "Selecione o raster acumulado no combobox.")
+            return
 
+        raster_fluxo = self.dlg_flow_tt.cb_3_pg2.currentText()
+        raster_bacia = self.dlg_flow_tt.cb_1_pg2.currentText()
+        raster_acumulado = nome_raster_acumulado
 
-    def dir_flux(self, raster_fluxo, raster_bacia, raster_mde):
         layer_fluxo = self.get_raster_layer_by_name(os.path.basename(raster_fluxo))
         layer_bacia = self.get_raster_layer_by_name(os.path.basename(raster_bacia))
-        layer_mde = self.get_raster_layer_by_name(os.path.basename(raster_mde))
+        layer_acumulado = self.get_raster_layer_by_name(os.path.basename(raster_acumulado))
 
         raster_fluxo_data = self.raster_to_array(layer_fluxo)
         raster_fluxo_data = np.where(np.ma.getmaskarray(raster_fluxo_data), 0, raster_fluxo_data)
@@ -3492,10 +3354,11 @@ class HidroPixel:
         raster_bacia_data = self.raster_to_array(layer_bacia)
         raster_bacia_data = np.where(np.ma.getmaskarray(raster_bacia_data), 0, raster_bacia_data)
 
-        raster_mde_data = self.raster_to_array(layer_mde)
-        raster_mde_data = np.where(np.ma.getmaskarray(raster_mde_data), np.nan, raster_mde_data)  # Mantém NaN para MDE
+        raster_acumulado_data = self.raster_to_array(layer_acumulado)
+        raster_acumulado_data = np.where(np.ma.getmaskarray(raster_acumulado_data), np.nan, raster_acumulado_data)
 
-        exutorio = self.encontrar_exutorio(raster_fluxo_data, raster_bacia_data, raster_mde_data)
+        exutorio = self.encontrar_exutorio(raster_fluxo_data, raster_bacia_data, raster_acumulado_data)
+        area_exutorio = None
         if exutorio is None:
             return
 
@@ -3505,7 +3368,7 @@ class HidroPixel:
             (0, 1):  int(self.dlg_flow_tt.le_6_pg1.text()),   # Leste
             (-1, 1): int(self.dlg_flow_tt.le_5_pg1.text()),   # Nordeste
             (-1, 0): int(self.dlg_flow_tt.le_12_pg1.text()),  # Norte
-            (-1,-1): int(self.dlg_flow_tt.le_11_pg1.text()),  # Noroeste
+            (-1, -1): int(self.dlg_flow_tt.le_11_pg1.text()), # Noroeste
             (0, -1): int(self.dlg_flow_tt.le_10_pg1.text()),  # Oeste
             (1, -1): int(self.dlg_flow_tt.le_9_pg1.text()),   # Sudoeste
             (1, 0):  int(self.dlg_flow_tt.le_8_pg1.text()),   # Sul
@@ -3545,6 +3408,7 @@ class HidroPixel:
                     caminho.append((ci, cj))
 
                     if (ci, cj) == exutorio:
+                        area_exutorio = raster_acumulado_data[exutorio]
                         for pi, pj in caminho:
                             status[pi, pj] = 1
                         break
@@ -3584,9 +3448,11 @@ class HidroPixel:
                     QMessageBox.critical(self.dlg_flow_tt, "Falha de Convergência", "\n".join(msgs))
                     return
 
-        QMessageBox.information(self.dlg_flow_tt, "Sucesso", f"Todos os pixels da bacia convergiram para o exutório {exutorio}.")
-
-
+        QMessageBox.information(
+            self.dlg_flow_tt, 
+            "Sucesso", 
+            f"Todos os pixels da bacia convergiram para o exutório {exutorio}." \
+            f"\nÁrea acumulada no exutório: {area_exutorio:.2f}.") 
 
 
     def executar_validacao_fluxo(self):
@@ -3594,20 +3460,90 @@ class HidroPixel:
 
         nome_fluxo = self.dlg_flow_tt.cb_3_pg2.currentText()
         nome_bacia = self.dlg_flow_tt.cb_1_pg2.currentText()
-        nome_mde = self.dlg_flow_tt.cb_2_pg2.currentText()
+        nome_acumulado = self.dlg_flow_tt.cb_6_pg2.currentText()
 
-        if not (nome_fluxo and nome_bacia and nome_mde):
-            QMessageBox.critical(self.dlg_flow_tt, "Erro", "Selecione os rasters de fluxo, bacia e MDE.")
+        if not (nome_fluxo and nome_bacia and nome_acumulado):
+            QMessageBox.critical(self.dlg_flow_tt, "Erro", "Selecione os rasters de fluxo, bacia e acumulado.")
             self.atualizar_label_validacao(self.dlg_flow_tt.label_94, 'nao_selecionado')
             return
 
         try:
-            self.dir_flux(nome_fluxo, nome_bacia, nome_mde)
+            self.processar_fluxo()
             self.atualizar_label_validacao(self.dlg_flow_tt.label_94, 'ok')
 
         except Exception as e:
             QMessageBox.critical(self.dlg_flow_tt, "Erro inesperado", str(e))
             self.atualizar_label_validacao(self.dlg_flow_tt.label_94, 'erro')
+
+    def validar_uso_cobertura(self):
+        try:
+            raster_bacia_nome = self.dlg_flow_tt.cb_1_pg2.currentText()
+            raster_uso_nome = self.dlg_flow_tt.cb_7_pg2.currentText()
+
+            layer_bacia = self.get_raster_layer_by_name(raster_bacia_nome)
+            layer_uso = self.get_raster_layer_by_name(raster_uso_nome)
+
+            array_bacia = self.raster_to_array(layer_bacia)
+            array_uso = self.raster_to_array(layer_uso)
+
+            array_bacia = np.where(np.ma.getmaskarray(array_bacia), 0, array_bacia)
+            mask_bacia = array_bacia == 1
+
+            array_uso = np.where(np.ma.getmaskarray(array_uso), -9999, array_uso)
+
+            valores_uso = array_uso[mask_bacia]
+            valores_unicos = np.unique(valores_uso)
+
+            valores_validos = [v for v in valores_unicos if isinstance(v, (int, np.integer)) and v != 0 and v != -9999]
+
+            if len(valores_validos) != len(valores_unicos):
+                self.dlg_flow_tt.label_99.setText("❌ Inválido")
+                QMessageBox.critical(self.dlg_flow_tt, "Erro", "Raster de uso e cobertura contém valores inválidos dentro da bacia.")
+                return
+
+            self.classes_uso_validas = set(valores_validos)
+            self.dlg_flow_tt.label_99.setText("✅ Válido")
+
+        except Exception as e:
+            self.dlg_flow_tt.label_99.setText("❌ Erro")
+            QMessageBox.critical(self.dlg_flow_tt, "Erro inesperado", str(e))
+
+    def validar_tabela_manning(self):
+        try:
+            if not hasattr(self, "classes_uso_validas") or not self.classes_uso_validas:
+                QMessageBox.warning(self.dlg_flow_tt, "Aviso", "Execute a validação do raster de uso e cobertura primeiro.")
+                self.dlg_flow_tt.label_97.setText("⚠️ Aguardando validação anterior")
+                return
+
+            tabela = self.dlg_flow_tt.tbw_2_pg2
+            linhas = tabela.rowCount()
+
+            classes_tabela = set()
+            manning_validos = {}
+
+            for i in range(linhas):
+                try:
+                    classe_id = int(tabela.item(i, 0).text())
+                    manning = float(tabela.item(i, 2).text())
+                    classes_tabela.add(classe_id)
+                    manning_validos[classe_id] = manning
+                except:
+                    continue
+
+            faltando = self.classes_uso_validas - classes_tabela
+            manning_invalidos = [cid for cid in self.classes_uso_validas if manning_validos.get(cid, 0) <= 0]
+
+            if faltando or manning_invalidos:
+                self.dlg_flow_tt.label_97.setText("❌ Inválido")
+                QMessageBox.critical(self.dlg_flow_tt, "Erro", "A tabela não contém todos os valores de Manning válidos para as classes encontradas.")
+            else:
+                self.dlg_flow_tt.label_97.setText("✅ Válido")
+
+        except Exception as e:
+            self.dlg_flow_tt.label_97.setText("❌ Erro")
+            QMessageBox.critical(self.dlg_flow_tt, "Erro inesperado", str(e))
+
+
 
 
 
@@ -3720,8 +3656,9 @@ class HidroPixel:
             self.dlg_flow_tt.pbtn_8_pg3.clicked.connect(self.validar_fluxo_manual)
             self.dlg_flow_tt.pbtn_10_pg3.clicked.connect(self.verificar_dimensoes_rasters)
             self.dlg_flow_tt.pbtn9_pg3.clicked.connect(lambda: self.executar_validacao_fluxo())
+            self.dlg_flow_tt.pbtn11_pg3.clicked.connect(self.validar_uso_cobertura)
+            self.dlg_flow_tt.pbtn12_pg3.clicked.connect(self.validar_tabela_manning)
 
-            
 
 
             # Configura os botões da página run page: flow travel time
