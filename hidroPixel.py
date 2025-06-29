@@ -49,7 +49,7 @@ import subprocess
 from osgeo import ogr, gdal, gdalconst
 from functools import wraps
 import matplotlib.pyplot as plt
-
+from collections import deque
 
 class HidroPixel:
     """QGIS Plugin Implementation."""
@@ -3543,9 +3543,64 @@ class HidroPixel:
             self.dlg_flow_tt.label_97.setText("❌ Erro")
             QMessageBox.critical(self.dlg_flow_tt, "Erro inesperado", str(e))
 
+    def verificar_conectividade_rede(self):
+        nome_rede = self.dlg_flow_tt.cb_4_pg2.currentText()
+        camada_rede = self.get_raster_layer_by_name(nome_rede)
 
+        if not camada_rede:
+            QMessageBox.critical(self.dlg_flow_tt, "Erro", "Camada de rede de drenagem não encontrada.")
+            self.atualizar_label_validacao(self.dlg_flow_tt.label_103, 'nao_selecionado')
+            return
 
+        rede_data = self.raster_to_array(camada_rede)
 
+        exutorio = None
+        nlin, ncol = rede_data.shape
+        for i in range(nlin):
+            for j in range(ncol):
+                if rede_data[i, j] == 1:
+                    exutorio = (i, j)
+        if exutorio is None:
+            QMessageBox.critical(self.dlg_flow_tt, "Erro", "Nenhum pixel de rede encontrado.")
+            self.atualizar_label_validacao(self.dlg_flow_tt.label_103, 'erro')
+            return
+
+        visitado = np.zeros_like(rede_data, dtype=bool)
+        from collections import deque
+        fila = deque()
+        fila.append(exutorio)
+        visitado[exutorio] = True
+
+        vizinhos = [(-1, -1), (-1, 0), (-1, 1),
+                    (0, -1),          (0, 1),
+                    (1, -1), (1, 0),  (1, 1)]
+
+        while fila:
+            i, j = fila.popleft()
+            for di, dj in vizinhos:
+                ni, nj = i + di, j + dj
+                if 0 <= ni < nlin and 0 <= nj < ncol:
+                    if not visitado[ni, nj] and rede_data[ni, nj] == 1:
+                        visitado[ni, nj] = True
+                        fila.append((ni, nj))
+
+        for i in range(nlin):
+            for j in range(ncol):
+                if rede_data[i, j] == 1 and not visitado[i, j]:
+                    QMessageBox.critical(
+                        self.dlg_flow_tt,
+                        "Erro",
+                        f"Pixel da rede ({i}, {j}) não está conectado ao exutório."
+                    )
+                    self.atualizar_label_validacao(self.dlg_flow_tt.label_103, 'erro')
+                    return
+
+        QMessageBox.information(
+            self.dlg_flow_tt,
+            "Sucesso",
+            "Todos os pixels da rede estão conectados ao exutório."
+        )
+        self.atualizar_label_validacao(self.dlg_flow_tt.label_103, 'ok')
 
 
     def run(self):
@@ -3658,6 +3713,7 @@ class HidroPixel:
             self.dlg_flow_tt.pbtn9_pg3.clicked.connect(lambda: self.executar_validacao_fluxo())
             self.dlg_flow_tt.pbtn11_pg3.clicked.connect(self.validar_uso_cobertura)
             self.dlg_flow_tt.pbtn12_pg3.clicked.connect(self.validar_tabela_manning)
+            self.dlg_flow_tt.pbtn14_pg3.clicked.connect(self.verificar_conectividade_rede)
 
 
 
