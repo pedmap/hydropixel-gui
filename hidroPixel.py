@@ -3133,7 +3133,6 @@ class HidroPixel:
         array = block.as_numpy()
         return array
 
-
     def get_raster_layer_by_name(self, name):
         # Busca no projeto QGIS um layer cujo nome (layer.name()) é igual a 'name'
         for layer in QgsProject.instance().mapLayers().values():
@@ -3141,29 +3140,52 @@ class HidroPixel:
                 return layer
         raise ValueError(f"Raster '{name}' não encontrado no projeto.")
 
-    def validar_raster_bacia(self):
+    def validar_raster_bacia(self, path, modulo=1):
+        """
+        Valida se o raster da bacia contém apenas valores 0 e 1.
+
+        Parâmetros:
+        - path: nome da camada selecionada no combobox
+        - modulo: int, define qual label será atualizado:
+            - 1: label_81
+            - 2: label_17
+            - 3: label_14
+        """
         try:
-            nome = self.dlg_flow_tt.cb_1_pg2.currentText()
-            if not nome:
-                self.atualizar_label_validacao(self.dlg_flow_tt.label_81, 'nao_selecionado')
+            if modulo == 1:
+                label = self.dlg_flow_tt.label_81
+            elif modulo == 2:
+                label = self.dlg_exc_rain.label_17
+            elif modulo == 3:
+                label = self.dlg_flow_rout.label_14
+            else:
+                QMessageBox.warning(self.dlg_flow_tt, "Aviso", f"Módulo inválido: {modulo}")
                 return
 
-            layer = self.get_raster_layer_by_name(nome)
+            if not path:
+                self.atualizar_label_validacao(label, 'nao_selecionado')
+                return
+
+            layer = self.get_raster_layer_by_name(path)
             array = self.raster_to_array(layer)
 
             valores_unicos = np.unique(array)
             if not np.all(np.isin(valores_unicos, [0, 1])):
-                QMessageBox.critical(self.dlg_flow_tt, "Erro",
-                    f"Raster de bacia contém valores diferentes de 0 e 1.\nValores encontrados: {valores_unicos}")
-                self.atualizar_label_validacao(self.dlg_flow_tt.label_81, 'erro')
+                QMessageBox.critical(
+                    self.dlg_flow_tt,
+                    "Erro",
+                    f"Raster de bacia contém valores diferentes de 0 e 1.\nValores encontrados: {valores_unicos}"
+                )
+                self.atualizar_label_validacao(label, 'erro')
                 return
 
             QMessageBox.information(self.dlg_flow_tt, "OK", "Raster de bacia válido.")
-            self.atualizar_label_validacao(self.dlg_flow_tt.label_81, 'ok')
+            self.atualizar_label_validacao(label, 'ok')
 
         except Exception as e:
             QMessageBox.critical(self.dlg_flow_tt, "Erro inesperado", str(e))
-            self.atualizar_label_validacao(self.dlg_flow_tt.label_81, 'erro')
+            self.atualizar_label_validacao(label, 'erro')
+
 
     def validar_raster_mde(self):
         try:
@@ -3238,26 +3260,47 @@ class HidroPixel:
                 return False
         return True
 
-    def verificar_dimensoes_rasters(self):
-        paths = [
-            self.dlg_flow_tt.cb_1_pg2.currentText(),
-            self.dlg_flow_tt.cb_2_pg2.currentText(),
-            self.dlg_flow_tt.cb_3_pg2.currentText(),
-            self.dlg_flow_tt.cb_7_pg2.currentText()
-        ]
+    def verificar_dimensoes_rasters(self, paths, modulo=1):
+        """
+        Verifica se todos os rasters fornecidos possuem a mesma dimensão e resolução.
+
+        Parâmetros:
+        - paths: lista de nomes de camadas raster selecionadas nos comboboxes
+        - modulo: int (1, 2 ou 3) define qual label e dialog serão utilizados:
+            - 1: dlg_flow_tt.label_95
+            - 2: dlg_exc_rain.label_13
+            - 3: dlg_flow_rout.label_10
+        """
         paths = [p for p in paths if p]
 
+        # Define o label e a janela (dlg) com base no módulo
+        if modulo == 1:
+            label = self.dlg_flow_tt.label_95
+            dlg = self.dlg_flow_tt
+        elif modulo == 2:
+            label = self.dlg_exc_rain.label_13
+            dlg = self.dlg_exc_rain
+        elif modulo == 3:
+            label = self.dlg_flow_rout.label_10
+            dlg = self.dlg_flow_rout
+        else:
+            QMessageBox.warning(self.dlg_flow_tt, "Aviso", f"Módulo inválido: {modulo}")
+            return
+
         if not paths:
-            QMessageBox.warning(self.dlg_flow_tt, "Aviso", "Nenhum raster selecionado para validação.")
-            self.atualizar_label_validacao(self.dlg_flow_tt.label_95, 'nao_selecionado')
+            QMessageBox.warning(dlg, "Aviso", "Nenhum raster selecionado para validação.")
+            self.atualizar_label_validacao(label, 'nao_selecionado')
             return
 
         if self.check_all_equal(paths):
-            QMessageBox.information(self.dlg_flow_tt, "Validação", "Todos os rasters têm a mesma dimensão e resolução.")
-            self.atualizar_label_validacao(self.dlg_flow_tt.label_95, 'ok')
+            QMessageBox.information(dlg, "Validação", "Todos os rasters têm a mesma dimensão e resolução.")
+            self.atualizar_label_validacao(label, 'ok')
         else:
-            QMessageBox.critical(self.dlg_flow_tt, "Erro", "Os rasters possuem dimensões ou resoluções diferentes.")
-            self.atualizar_label_validacao(self.dlg_flow_tt.label_95, 'erro')
+            QMessageBox.critical(dlg, "Erro", "Os rasters possuem dimensões ou resoluções diferentes.")
+            self.atualizar_label_validacao(label, 'erro')
+
+
+
 
 
     def validar_direcoes(self, fluxo_path):
@@ -3566,7 +3609,7 @@ class HidroPixel:
             return
 
         visitado = np.zeros_like(rede_data, dtype=bool)
-        from collections import deque
+        
         fila = deque()
         fila.append(exutorio)
         visitado[exutorio] = True
@@ -3601,6 +3644,246 @@ class HidroPixel:
             "Todos os pixels da rede estão conectados ao exutório."
         )
         self.atualizar_label_validacao(self.dlg_flow_tt.label_103, 'ok')
+
+    def verificar_acumulado_drenagem(self):
+        from collections import deque
+
+        # Obtém caminhos dos rasters
+        path_acumulado = self.dlg_flow_tt.cb_6_pg2.currentText()
+        path_bacia = self.dlg_flow_tt.cb_1_pg2.currentText()
+        path_rede = self.dlg_flow_tt.cb_4_pg2.currentText()
+
+        # Verifica se foram selecionados
+        if not path_acumulado or not path_bacia or not path_rede:
+            QMessageBox.warning(self.dlg_flow_tt, "Aviso", "Um ou mais rasters não foram selecionados.")
+            self.atualizar_label_validacao(self.dlg_flow_tt.label_105, 'nao_selecionado')
+            return
+
+        # Lê os dados
+        acumulado_layer = self.get_raster_layer_by_name(path_acumulado)
+        acumulado_data = self.raster_to_array(acumulado_layer)
+
+        bacia_layer = self.get_raster_layer_by_name(path_bacia)
+        bacia_data = self.raster_to_array(bacia_layer)
+
+        rede_layer = self.get_raster_layer_by_name(path_rede)
+        rede_data = self.raster_to_array(rede_layer)
+
+        # Encontrar o exutório
+        exutorio = self.encontrar_exutorio(None, bacia_data, acumulado_data)
+        if exutorio is None:
+            self.atualizar_label_validacao(self.dlg_flow_tt.label_105, 'erro')
+            return
+
+        nlin, ncol = bacia_data.shape
+        visitado = np.zeros((nlin, ncol), dtype=bool)
+        fila = deque()
+
+        # Inicializa com o exutório
+        fila.append(exutorio)
+        visitado[exutorio] = True
+
+        # Direções vizinhas (8 conectividades)
+        direcoes = [(-1, -1), (-1, 0), (-1, 1),
+                    (0, -1),          (0, 1),
+                    (1, -1),  (1, 0), (1, 1)]
+
+        while fila:
+            i, j = fila.popleft()
+            val_atual = acumulado_data[i, j]
+
+            for di, dj in direcoes:
+                ni, nj = i + di, j + dj
+                if 0 <= ni < nlin and 0 <= nj < ncol:
+                    if visitado[ni, nj]:
+                        continue
+                    if bacia_data[ni, nj] != 1:
+                        continue
+                    if rede_data[ni, nj] != 1:
+                        continue
+                    val_vizinho = acumulado_data[ni, nj]
+
+                    if np.isnan(val_vizinho) or val_vizinho <= 0:
+                        QMessageBox.critical(self.dlg_flow_tt, "Erro", f"Pixel inválido ({ni}, {nj}) com valor acumulado {val_vizinho}")
+                        self.atualizar_label_validacao(self.dlg_flow_tt.label_105, 'erro')
+                        return
+
+                    # Validação: deve ser menor que o atual para ser montante
+                    if val_vizinho < val_atual:
+                        visitado[ni, nj] = True
+                        fila.append((ni, nj))
+
+        # Verifica se todos os pixels da rede foram visitados
+        for i in range(nlin):
+            for j in range(ncol):
+                if bacia_data[i, j] == 1 and rede_data[i, j] == 1:
+                    if not visitado[i, j]:
+                        QMessageBox.critical(
+                            self.dlg_flow_tt, "Erro",
+                            f"Pixel da rede ({i}, {j}) não está conectado corretamente ao exutório ou tem valores não crescentes."
+                        )
+                        self.atualizar_label_validacao(self.dlg_flow_tt.label_105, 'erro')
+                        return
+
+        # Sucesso
+        QMessageBox.information(self.dlg_flow_tt, "Validação", "Todos os valores acumulados estão corretos e crescentes até o exutório.")
+        self.atualizar_label_validacao(self.dlg_flow_tt.label_105, 'ok')
+
+
+    # pedro rain
+    def validar_raster_cn(self):
+        try:
+            # Caminhos dos rasters
+            path_cn = self.dlg_exc_rain.cb_2_pg2.currentText()
+            path_bacia = self.dlg_exc_rain.cb_1_pg2.currentText()
+
+            if not path_cn or not path_bacia:
+                self.atualizar_label_validacao(self.dlg_exc_rain.label_19, 'nao_selecionado')
+                return
+
+            # Carrega as camadas
+            layer_cn = self.get_raster_layer_by_name(path_cn)
+            layer_bacia = self.get_raster_layer_by_name(path_bacia)
+
+            # Converte para arrays
+            cn_data = self.raster_to_array(layer_cn)
+            bacia_data = self.raster_to_array(layer_bacia)
+
+            # Validação de dimensão
+            if cn_data.shape != bacia_data.shape:
+                QMessageBox.critical(self.dlg_exc_rain, "Erro", "As dimensões do raster de CN e da bacia não coincidem.")
+                self.atualizar_label_validacao(self.dlg_exc_rain.label_19, 'erro')
+                return
+
+            # Aplica a máscara da bacia
+            mascara_bacia = bacia_data == 1
+            cn_dentro_bacia = cn_data[mascara_bacia]
+
+            # Verificação
+            if np.any(np.isnan(cn_dentro_bacia)):
+                QMessageBox.critical(self.dlg_exc_rain, "Erro", "O raster de CN contém valores NaN dentro da bacia.")
+                self.atualizar_label_validacao(self.dlg_exc_rain.label_19, 'erro')
+                return
+
+            if np.any((cn_dentro_bacia <= 0) | (cn_dentro_bacia > 100)):
+                valores_invalidos = cn_dentro_bacia[(cn_dentro_bacia <= 0) | (cn_dentro_bacia > 100)]
+                QMessageBox.critical(
+                    self.dlg_exc_rain,
+                    "Erro",
+                    f"O raster de CN possui valores inválidos dentro da bacia. Exemplos: {valores_invalidos[:5]}"
+                )
+                self.atualizar_label_validacao(self.dlg_exc_rain.label_19, 'erro')
+                return
+
+            # Tudo OK
+            QMessageBox.information(self.dlg_exc_rain, "Validação", "Raster de CN válido.")
+            self.atualizar_label_validacao(self.dlg_exc_rain.label_19, 'ok')
+
+        except Exception as e:
+            QMessageBox.critical(self.dlg_exc_rain, "Erro inesperado", str(e))
+            self.atualizar_label_validacao(self.dlg_exc_rain.label_19, 'erro')
+
+    # pedro flow routing
+    def verificar_tempos_de_viagem(self):
+        try:
+            # Obter caminhos dos rasters
+            nome_tempo = self.dlg_flow_rout.cb_3_pg2.currentText()
+            nome_bacia = self.dlg_flow_rout.cb_1_pg2.currentText()
+            nome_rede = self.dlg_flow_rout.cb_2_pg2.currentText()
+            nome_fluxo = self.dlg_flow_tt.cb_3_pg2.currentText()  # Direções de fluxo
+
+            if not nome_tempo or not nome_bacia or not nome_fluxo:
+                self.atualizar_label_validacao(self.dlg_flow_rout.label_20, 'nao_selecionado')
+                return
+
+            # Carregar arrays
+            tempo_array = self.raster_to_array(self.get_raster_layer_by_name(nome_tempo))
+            bacia_array = self.raster_to_array(self.get_raster_layer_by_name(nome_bacia))
+            fluxo_array = self.raster_to_array(self.get_raster_layer_by_name(nome_fluxo))
+
+            rede_array = None
+            if nome_rede:
+                try:
+                    rede_array = self.raster_to_array(self.get_raster_layer_by_name(nome_rede))
+                except:
+                    pass  # Considera sem rede se erro
+
+            nlin, ncol = bacia_array.shape
+
+            # Mapeamento das direções D8 (valores comuns: 1 a 128)
+            direcoes_d8 = {
+                1:  (0, 1),    # Leste
+                2:  (1, 1),    # Sudeste
+                4:  (1, 0),    # Sul
+                8:  (1, -1),   # Sudoeste
+                16: (0, -1),   # Oeste
+                32: (-1, -1),  # Noroeste
+                64: (-1, 0),   # Norte
+                128:(-1, 1)    # Nordeste
+            }
+
+            visitado = np.zeros_like(bacia_array, dtype=bool)
+
+            def seguir_fluxo(i, j):
+                caminho = [(i, j)]
+                while True:
+                    if not (0 <= i < nlin and 0 <= j < ncol):
+                        return True  # Fora dos limites → final
+
+                    if bacia_array[i, j] != 1:
+                        return True  # Fora da bacia → final
+
+                    if visitado[i, j]:
+                        return True  # Já validado
+
+                    if not np.isfinite(tempo_array[i, j]) or tempo_array[i, j] <= 0:
+                        return False  # Valor inválido
+
+                    if rede_array is not None and rede_array[i, j] != 1:
+                        return True  # Fora da rede
+
+                    direcao = fluxo_array[i, j]
+                    if direcao not in direcoes_d8:
+                        return True  # Sem direção válida (possivelmente exutório)
+
+                    di, dj = direcoes_d8[direcao]
+                    ni, nj = i + di, j + dj
+
+                    if not (0 <= ni < nlin and 0 <= nj < ncol):
+                        return True  # Fora da grade
+
+                    tempo_atual = tempo_array[i, j]
+                    tempo_prox = tempo_array[ni, nj]
+
+                    if np.isfinite(tempo_prox) and tempo_prox < tempo_atual:
+                        return False  # Não está crescendo
+
+                    visitado[i, j] = True
+                    i, j = ni, nj
+                    caminho.append((i, j))
+
+            # Verificar todos os pixels da bacia (e rede, se houver)
+            for i in range(nlin):
+                for j in range(ncol):
+                    if bacia_array[i, j] == 1 and not visitado[i, j]:
+                        if rede_array is None or rede_array[i, j] == 1:
+                            if not seguir_fluxo(i, j):
+                                QMessageBox.critical(self.dlg_flow_rout, "Erro",
+                                    f"Tempo de viagem inválido: valores não positivos ou não crescentes a partir de ({i}, {j}).")
+                                self.atualizar_label_validacao(self.dlg_flow_rout.label_20, 'erro')
+                                return
+
+            QMessageBox.information(self.dlg_flow_rout, "Validação", "Raster de tempo de viagem válido.")
+            self.atualizar_label_validacao(self.dlg_flow_rout.label_20, 'ok')
+
+        except Exception as e:
+            QMessageBox.critical(self.dlg_flow_rout, "Erro inesperado", str(e))
+            self.atualizar_label_validacao(self.dlg_flow_rout.label_20, 'erro')
+
+
+
+
+
 
 
     def run(self):
@@ -3705,16 +3988,24 @@ class HidroPixel:
             # Configura os botões da página data validation tool: flow travel time
             ### pedro
 
-            self.dlg_flow_tt.pbtn_6_pg3.clicked.connect(self.validar_raster_bacia)
+            self.dlg_flow_tt.pbtn_6_pg3.clicked.connect(
+                lambda: self.validar_raster_bacia(self.dlg_flow_tt.cb_1_pg2.currentText(),modulo=1)
+            )
             self.dlg_flow_tt.pbtn_7_pg3.clicked.connect(self.validar_raster_mde)
             self.dlg_flow_tt.pbtn_8_pg3.clicked.connect(self.preencher_direcoes_padrao)
             self.dlg_flow_tt.pbtn_8_pg3.clicked.connect(self.validar_fluxo_manual)
-            self.dlg_flow_tt.pbtn_10_pg3.clicked.connect(self.verificar_dimensoes_rasters)
+            self.dlg_flow_tt.pbtn_10_pg3.clicked.connect(lambda: self.verificar_dimensoes_rasters([
+                        self.dlg_flow_tt.cb_1_pg2.currentText(),
+                        self.dlg_flow_tt.cb_2_pg2.currentText(),
+                        self.dlg_flow_tt.cb_3_pg2.currentText(),
+                        self.dlg_flow_tt.cb_7_pg2.currentText()
+                    ], modulo = 1)
+                )
             self.dlg_flow_tt.pbtn9_pg3.clicked.connect(lambda: self.executar_validacao_fluxo())
             self.dlg_flow_tt.pbtn11_pg3.clicked.connect(self.validar_uso_cobertura)
             self.dlg_flow_tt.pbtn12_pg3.clicked.connect(self.validar_tabela_manning)
             self.dlg_flow_tt.pbtn14_pg3.clicked.connect(self.verificar_conectividade_rede)
-
+            self.dlg_flow_tt.pbtn15_pg3.clicked.connect(self.verificar_acumulado_drenagem)
 
 
             # Configura os botões da página run page: flow travel time
@@ -3867,6 +4158,18 @@ class HidroPixel:
                 lambda: self.carregaArquivos(self.dlg_exc_rain.le_3_pg2, 0, file_type='text'))
             self.dlg_exc_rain.tbtn_pg2_4.clicked.connect(
                 lambda: self.carregaArquivos(self.dlg_exc_rain.le_4_pg2, 0, file_type='text'))
+            
+
+            # pedro
+            self.dlg_exc_rain.pbtn1_pg_3.clicked.connect(lambda: self.verificar_dimensoes_rasters([
+                        self.dlg_exc_rain.cb_1_pg2.currentText(),
+                        self.dlg_exc_rain.cb_2_pg2.currentText(),
+                    ], modulo = 2)
+                )
+            self.dlg_exc_rain.pbtn2_pg_3.clicked.connect(
+                lambda: self.validar_raster_bacia(self.dlg_exc_rain.cb_1_pg2.currentText(),modulo=2)
+            )
+            self.dlg_exc_rain.pbtn3_pg_3.clicked.connect(self.validar_raster_cn)
 
             # configura botões de salvar e salvar para um arquivo: excess rainfall
             self.dlg_exc_rain.btn_save_file_pg1.clicked.connect(
@@ -3975,6 +4278,22 @@ class HidroPixel:
 
             self.dlg_flow_rout.tbtn_pg4_7.clicked.connect(
                 lambda: self.carregaArquivos(self.dlg_flow_rout.le_7_pg4, 0, file_type='text'))
+            
+            # pedro
+            self.dlg_flow_rout.pbtn_1_pg3.clicked.connect(
+                 lambda: self.verificar_dimensoes_rasters(
+                     paths=[
+                        self.dlg_flow_rout.cb_1_pg2.currentText(),
+                        self.dlg_flow_rout.cb_3_pg2.currentText(),
+                        self.dlg_flow_rout.cb_5_pg2.currentText(),
+                         
+                     ], modulo=3
+                 )
+             )
+            self.dlg_flow_rout.pbtn_2_pg3.clicked.connect(
+                lambda: self.validar_raster_bacia(self.dlg_flow_rout.cb_1_pg2.currentText(),modulo=3)
+            )
+            self.dlg_flow_rout.pbtn_3_pg3.clicked.connect(self.verificar_tempos_de_viagem)
 
             # configura botões de salvar e salvar para um arquivo: flow travel time
             self.dlg_flow_rout.btn_save_file_pg1.clicked.connect(
