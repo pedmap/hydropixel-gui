@@ -3880,6 +3880,147 @@ class HidroPixel:
             QMessageBox.critical(self.dlg_flow_rout, "Erro inesperado", str(e))
             self.atualizar_label_validacao(self.dlg_flow_rout.label_20, 'erro')
 
+    def verificar_chuva_excedente_total(self):
+        try:
+            # Caminhos dos rasters
+            nome_chuva = self.dlg_flow_rout.cb_5_pg2.currentText()
+            nome_bacia = self.dlg_flow_rout.cb_1_pg2.currentText()
+
+            if not nome_chuva or not nome_bacia:
+                self.atualizar_label_validacao(self.dlg_flow_rout.label_22, 'nao_selecionado')
+                return
+
+            # Carregar arrays
+            chuva_array = self.raster_to_array(self.get_raster_layer_by_name(nome_chuva))
+            bacia_array = self.raster_to_array(self.get_raster_layer_by_name(nome_bacia))
+
+            # Máscara da bacia
+            dentro_bacia = (bacia_array == 1)
+
+            # Extrair valores dentro da bacia
+            valores_chuva = chuva_array[dentro_bacia]
+
+            if not np.all(np.isfinite(valores_chuva)):
+                QMessageBox.critical(self.dlg_flow_rout, "Erro",
+                    "Raster de chuva excedente possui valores nulos ou não numéricos dentro da bacia.")
+                self.atualizar_label_validacao(self.dlg_flow_rout.label_22, 'erro')
+                return
+
+            if np.any(valores_chuva < 0):
+                QMessageBox.critical(self.dlg_flow_rout, "Erro",
+                    f"Valores negativos encontrados na chuva excedente dentro da bacia.")
+                self.atualizar_label_validacao(self.dlg_flow_rout.label_22, 'erro')
+                return
+
+            QMessageBox.information(self.dlg_flow_rout, "Validação", "Raster de chuva excedente total é válido.")
+            self.atualizar_label_validacao(self.dlg_flow_rout.label_22, 'ok')
+
+        except Exception as e:
+            QMessageBox.critical(self.dlg_flow_rout, "Erro inesperado", str(e))
+            self.atualizar_label_validacao(self.dlg_flow_rout.label_22, 'erro')
+
+    def validar_hietograma_txt(self):
+        try:
+            path = self.dlg_flow_rout.le_4_pg2.text()
+            if not path or not os.path.exists(path):
+                QMessageBox.warning(self.dlg_flow_rout, "Aviso", "Arquivo não encontrado.")
+                self.atualizar_label_validacao(self.dlg_flow_rout.label_24, 'nao_selecionado')
+                return
+
+            with open(path, 'r', encoding='utf-8') as f:
+                # Remove espaços extras entre valores e no final da linha, mantém apenas \n
+                linhas = [linha.strip() for linha in f if linha.strip()]
+
+            if len(linhas) < 2:
+                QMessageBox.critical(self.dlg_flow_rout, "Erro", "Arquivo não contém dados suficientes.")
+                self.atualizar_label_validacao(self.dlg_flow_rout.label_24, 'erro')
+                return
+
+            cabecalho = [col.strip() for col in linhas[0].split(',')]
+            if cabecalho[0].lower() != 'pixel':
+                QMessageBox.critical(self.dlg_flow_rout, "Erro", "Cabeçalho inválido. Deve começar com 'Pixel'.")
+                self.atualizar_label_validacao(self.dlg_flow_rout.label_24, 'erro')
+                return
+
+            num_colunas_esperado = len(cabecalho)  # ex: 43
+
+            for i, linha in enumerate(linhas[1:], start=2):
+                partes = [col.strip() for col in linha.split(',')]
+
+                # Remove colunas vazias no fim da linha, causadas por vírgulas extras
+                while partes and partes[-1] == '':
+                    partes.pop()
+
+                # Se a linha tem uma coluna a mais, remove o último valor extra (provavelmente espaço extra no arquivo)
+                if len(partes) == num_colunas_esperado + 1:
+                    partes.pop()
+                elif len(partes) != num_colunas_esperado:
+                    QMessageBox.critical(
+                        self.dlg_flow_rout,
+                        "Erro",
+                        f"Linha {i} tem {len(partes)} colunas, esperado {num_colunas_esperado}."
+                    )
+                    self.atualizar_label_validacao(self.dlg_flow_rout.label_24, 'erro')
+                    return
+
+                # Validar índice do pixel (primeira coluna) — deve ser inteiro positivo
+                try:
+                    pixel_index = int(partes[0])
+                    if pixel_index <= 0:
+                        QMessageBox.critical(
+                            self.dlg_flow_rout,
+                            "Erro",
+                            f"Linha {i} tem índice de pixel não positivo."
+                        )
+                        self.atualizar_label_validacao(self.dlg_flow_rout.label_24, 'erro')
+                        return
+                except ValueError:
+                    QMessageBox.critical(
+                        self.dlg_flow_rout,
+                        "Erro",
+                        f"Linha {i} tem índice de pixel inválido."
+                    )
+                    self.atualizar_label_validacao(self.dlg_flow_rout.label_24, 'erro')
+                    return
+
+                # Validar os valores temporais (todas as colunas depois do índice do pixel)
+                valores_temporais = partes[1:]
+                try:
+                    valores = list(map(float, valores_temporais))
+                    if not all(v >= 0 for v in valores):
+                        QMessageBox.critical(
+                            self.dlg_flow_rout,
+                            "Erro",
+                            f"Linha {i} contém valores negativos."
+                        )
+                        self.atualizar_label_validacao(self.dlg_flow_rout.label_24, 'erro')
+                        return
+                except ValueError:
+                    QMessageBox.critical(
+                        self.dlg_flow_rout,
+                        "Erro",
+                        f"Linha {i} contém valores não numéricos."
+                    )
+                    self.atualizar_label_validacao(self.dlg_flow_rout.label_24, 'erro')
+                    return
+
+            QMessageBox.information(self.dlg_flow_rout, "OK", "Arquivo de hietograma válido.")
+            self.atualizar_label_validacao(self.dlg_flow_rout.label_24, 'ok')
+
+        except Exception as e:
+            QMessageBox.critical(self.dlg_flow_rout, "Erro inesperado", str(e))
+            self.atualizar_label_validacao(self.dlg_flow_rout.label_24, 'erro')
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4294,6 +4435,10 @@ class HidroPixel:
                 lambda: self.validar_raster_bacia(self.dlg_flow_rout.cb_1_pg2.currentText(),modulo=3)
             )
             self.dlg_flow_rout.pbtn_3_pg3.clicked.connect(self.verificar_tempos_de_viagem)
+            self.dlg_flow_rout.pbtn_4_pg3.clicked.connect(self.verificar_chuva_excedente_total)
+            self.dlg_flow_rout.pbtn_5_pg3.clicked.connect(self.validar_hietograma_txt)
+
+            # pedro fim
 
             # configura botões de salvar e salvar para um arquivo: flow travel time
             self.dlg_flow_rout.btn_save_file_pg1.clicked.connect(
